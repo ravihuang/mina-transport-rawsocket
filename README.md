@@ -1,4 +1,4 @@
-# mina-transport-rawsocket
+# Apache Mina Transport Rawsocket
 Apache mina Rawsocket Transport
 
 Using native library jnetpcap 1.4.r1425 from: http://jnetpcap.com/download
