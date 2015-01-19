@@ -31,16 +31,8 @@ public class RawIoConnector extends
     /** The session. */
     private RawIoSession session;
 
-    public RawIoConnector() {
-        this(new DefaultRawSessionConfig(),new RawProcessor(Executors.newCachedThreadPool()));
-    }
-    
     public RawIoConnector(DefaultRawSessionConfig config) {
         this(config,new RawProcessor(Executors.newCachedThreadPool()));        
-    }
-    
-    public RawIoConnector(RawProcessor processor) {
-        this(new DefaultRawSessionConfig(),processor);        
     }
     
     /**
@@ -222,6 +214,9 @@ public class RawIoConnector extends
      */
     @Override
     protected void init() throws Exception {
+        if(((DefaultRawSessionConfig)sessionConfig).getLocalBindingAddr()==null)
+            throw new RuntimeException("sessionConfig.setLocalBindingAddr not set.");
+        
         selector = new RawSelector(this,
                 (DefaultRawSessionConfig) sessionConfig);
     }

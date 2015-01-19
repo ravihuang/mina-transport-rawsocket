@@ -155,10 +155,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
     /** The session recycler. */
     private IoSessionRecycler sessionRecycler = DEFAULT_RECYCLER;
 
-    public RawIoAcceptor() {
-        this(new DefaultRawSessionConfig(), null);
-    }
-
     /**
      * Instantiates a new raw io acceptor.
      *
@@ -181,6 +177,9 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
             Executor executor) {
         super(sessionConfig, executor);
         selectable = true;
+        if(((DefaultRawSessionConfig)sessionConfig).getLocalBindingAddr()==null)
+            throw new RuntimeException("sessionConfig.setLocalBindingAddr not set.");
+               
         selector = new RawSelector(this, sessionConfig);
         localAddr=sessionConfig.getLocalBindingAddr();
     }
