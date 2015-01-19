@@ -8,8 +8,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
 import org.jnetpcap.Pcap;
 import org.jnetpcap.PcapAddr;
 import org.jnetpcap.PcapIf;
@@ -17,7 +15,6 @@ import org.jnetpcap.protocol.JProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Auto-generated Javadoc
 /**
  * The Class EthAddress.
  */
@@ -26,12 +23,11 @@ public class EthAddress extends SocketAddress {
      * 
      */
     private static final long serialVersionUID = -7707177261728737472L;
-    /** The dumper filename. */
-    private String dumperFilename;
     
     // detail log switch
     public static boolean verbose = false;
-
+    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
+    
     static {
         alldevs = new ArrayList<PcapIf>();
         nes = new ArrayList<EthNE>();
@@ -46,60 +42,16 @@ public class EthAddress extends SocketAddress {
     public final static List<EthNE> nes;
 
     /** The log. */
-    private static Logger log;
-
-    /**
-     * B2h.
-     *
-     * @param b
-     *            the b
-     * @return the string
-     */
-    public static String b2h(byte b) {
-        String tmp = Integer.toHexString(b);
-        int len = tmp.length();
-        if (len > 2)
-            return tmp.substring(len - 2);
-
-        return len == 1 ? ("0" + tmp) : tmp;
-    }
-
-    /**
-     * Bs2chs.
-     *
-     * @param bs
-     *            the bs
-     * @param deli
-     *            the deli
-     * @return the string
-     */
-    public static String bs2chs(byte[] bs, String deli) {
-        String s = "";
-        if (bs == null || bs.length == 0)
-            return s;
-
-        for (int i = 0; i < bs.length - 1; i++) {
-            s += b2h(bs[i]) + deli;
+    private static Logger log;    
+    
+    private static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for ( int j = 0; j < bytes.length; j++ ) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
         }
-        return s + b2h(bs[bs.length - 1]);
-    }
-
-    /**
-     * Chs2b.
-     *
-     * @param colonstring
-     *            the colonstring
-     * @return the byte[]
-     */
-    public static byte[] chs2b(String colonstring) {
-        String[] ss = colonstring.split("[.|:|-| ]");
-        String s = "";
-        for (int i = 0; i < ss.length; i++) {
-            if (ss[i].length() % 2 == 1)
-                ss[i] = "0" + ss[i];
-            s += ss[i];
-        }
-        return hexs2b(s);
+        return new String(hexChars);
     }
 
     /**
@@ -146,40 +98,14 @@ public class EthAddress extends SocketAddress {
         }
         return null;
     }
-
-    /**
-     * Hexs2b.
-     *
-     * @param hexstring
-     *            the hexstring
-     * @return the byte[]
-     */
-    public static byte[] hexs2b(String hexstring) {
+    private static byte[] ip2b(String ip) {
         try {
-
-            return (byte[]) new Hex().decode(hexstring.replaceAll(" |\n", ""));
-        } catch (DecoderException e) {
+            return InetAddress.getByName(ip).getAddress();
+        } catch (UnknownHostException e) {
             e.printStackTrace();
-            return null;
         }
+        return null;
     }
-
-    /**
-     * Mac2bs.
-     *
-     * @param hexstring
-     *            the hexstring
-     * @return the byte[]
-     */
-    public static byte[] mac2bs(String hexstring) {
-        byte[] bs = chs2b(hexstring);
-
-        if (bs.length != 6)
-            throw new Error("wrong mac size!");
-
-        return bs;
-    }
-
     /**
      * Init_all_if.
      */
@@ -217,22 +143,6 @@ public class EthAddress extends SocketAddress {
         }
     }
 
-    /**
-     * Ip2b.
-     *
-     * @param ip
-     *            the ip
-     * @return the byte[]
-     */
-    private static byte[] ip2b(String ip) {
-        try {
-            return InetAddress.getByName(ip).getAddress();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
     /** The nif. */
     private EthNE nif;
 
@@ -244,7 +154,8 @@ public class EthAddress extends SocketAddress {
 
     /** The frame type. */
     private int frameType = JProtocol.ETHERNET_ID;
-
+    
+    private String ip;
     /**
      * Instantiates a new mac address.
      *
@@ -266,26 +177,7 @@ public class EthAddress extends SocketAddress {
     public EthAddress(EthNE nif) {
         this.nif = nif;
         this.mac = nif.get_mac();
-
-    }
-
-    /**
-     * Instantiates a new mac address.
-     *
-     * @param mac
-     *            the mac
-     */
-    public EthAddress(String mac) {
-        this.mac = mac2bs(mac);
-    }
-
-    /**
-     * Gets the dumper filename.
-     *
-     * @return the dumper filename
-     */
-    public String getDumperFilename() {
-        return dumperFilename;
+        ip=nif.get_id();
     }
 
     /**
@@ -319,15 +211,6 @@ public class EthAddress extends SocketAddress {
     }
 
     /**
-     * Sets the dumper filename.
-     *
-     * @param dumperFilename the new dumper filename
-     */
-    public void setDumperFilename(String dumperFilename) {
-        this.dumperFilename = dumperFilename;
-    }
-
-    /**
      * Sets the eth type.
      *
      * @param ethType
@@ -354,6 +237,6 @@ public class EthAddress extends SocketAddress {
      */
     @Override
     public String toString() {
-        return nif + " " + bs2chs(mac, ":");
+        return nif + " " + bytesToHex(mac);
     }
 }

@@ -3,58 +3,60 @@ package org.apache.mina.transport.rawsocket;
 import org.apache.mina.core.session.AbstractIoSessionConfig;
 import org.apache.mina.core.session.IoSessionConfig;
 import org.jnetpcap.Pcap;
+import org.jnetpcap.protocol.JProtocol;
 
 public class DefaultRawSessionConfig extends AbstractIoSessionConfig {
-    
-    /** The snaplen. */
-    private int snaplen = 2000;
-    
-    /** The promisc. */
-    private int promisc = Pcap.MODE_NON_PROMISCUOUS;
-    
-    /** The timeout. */
-    private int timeout = 1000;
-    
-    /** The need capture. */
-    private boolean needCapture = true;
-    
-    /** The protocol id. */
-    private int protocolId;
-    
-    /** The err buffer. */
-    private StringBuilder errBuffer = new StringBuilder();
-    
-    /** The user. */
-    private String user = "ate";
-    
-    /** The loop. */
-    private int loop = -1;
-    
-    /** The lcladdr. */
-    private EthAddress lcladdr;
-    
-    /** The filter. */
-    private String filter;
-    
-    /** The optimize. */
-    private int optimize = 0;
-    
-    /** The netmask. */
-    private int netmask = 0xFFFFFF00;
     
     /** The connect timeout in millis. */
     private long connectTimeoutInMillis;
     
+    /** The err buffer. */
+    private StringBuilder errBuffer = new StringBuilder();
+    
+    /** The filter. */
+    private String filter;
+    
+    public static final int DEFAULT_FRAME_TYPE=JProtocol.ETHERNET_ID;
+    
+    /** The lcladdr. */
+    private EthAddress lcladdr;
+    
+    /** The loop. */
+    private int loop = -1;
+    
     private String name;
     
-    public String getName() {
-        return name;
+    /** The need capture. */
+    private boolean needCapture = true;
+    
+    /** The netmask. */
+    private int netmask = 0xFFFFFF00;
+    
+    /** The optimize. */
+    private int optimize = 0;
+    
+    /** The promisc. */
+    private int promisc = Pcap.MODE_NON_PROMISCUOUS;
+    
+    /** The protocol id. */
+    private int protocolId;
+    
+    /** The snaplen. */
+    private int snaplen = 2000;
+    
+    /** The timeout. */
+    private int timeout = 1000;
+    /** The user. */
+    private String user = "ate";
+     
+    private String dumperFilename;
+    
+    public DefaultRawSessionConfig(){}
+    
+    public DefaultRawSessionConfig(EthAddress lcladdr){
+        this.lcladdr=lcladdr;
     }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
+    
     /**
      * Gets the connect timeout millis.
      *
@@ -63,7 +65,11 @@ public class DefaultRawSessionConfig extends AbstractIoSessionConfig {
     public final long getConnectTimeoutMillis() {
         return connectTimeoutInMillis;
     }
-
+    
+    public String getDumperFilename() {
+        return dumperFilename;
+    }
+    
     /**
      * Gets the err buffer.
      *
@@ -72,7 +78,7 @@ public class DefaultRawSessionConfig extends AbstractIoSessionConfig {
     public StringBuilder getErrBuffer() {
         return errBuffer;
     }
-
+    
     /**
      * Gets the filter.
      *
@@ -108,6 +114,10 @@ public class DefaultRawSessionConfig extends AbstractIoSessionConfig {
      */
     public EthAddress getMacAddrByIp(String ip) {
         return EthAddress.get_addr_by_ip(ip);
+    }
+
+    public String getName() {
+        return name;
     }
 
     /**
@@ -183,6 +193,15 @@ public class DefaultRawSessionConfig extends AbstractIoSessionConfig {
     }
 
     /**
+     * Sets the dumper filename.
+     *
+     * @param dumperFilename the new dumper filename
+     */
+    public void setDumperFilename(String dumperFilename) {
+        this.dumperFilename = dumperFilename;
+    }
+    
+    /**
      * Sets the err buffer.
      *
      * @param errBuffer the new err buffer
@@ -206,6 +225,8 @@ public class DefaultRawSessionConfig extends AbstractIoSessionConfig {
      * @param macaddr the new local mac addr
      */
     public void setLocalEthAddr(EthAddress macaddr) {
+        if(macaddr==null)
+            throw new RuntimeException("setLocalEthAddr cant be null");
         this.lcladdr = macaddr;
     }
 
@@ -216,6 +237,10 @@ public class DefaultRawSessionConfig extends AbstractIoSessionConfig {
      */
     public void setLoop(int loop) {
         this.loop = loop;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     /**

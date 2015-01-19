@@ -45,7 +45,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
          * 
          * @see java.lang.Runnable#run()
          */
-        @Override
         public void run() {
             int nHandles = 0;
             lastIdleCheckTime = System.currentTimeMillis();
@@ -148,8 +147,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
     /** The register queue. */
     private final Queue<AcceptorOperationFuture> registerQueue = new ConcurrentLinkedQueue<AcceptorOperationFuture>();
 
-    private EthAddress remoteAddr;
-
     /** The selectable. */
     private volatile boolean selectable;
 
@@ -161,7 +158,7 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
     public RawIoAcceptor() {
         this(new DefaultRawSessionConfig(), null);
     }
-    
+
     /**
      * Instantiates a new raw io acceptor.
      *
@@ -185,6 +182,7 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
         super(sessionConfig, executor);
         selectable = true;
         selector = new RawSelector(this, sessionConfig);
+        localAddr=sessionConfig.getLocalBindingAddr();
     }
 
     /*
@@ -194,17 +192,15 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
      * org.apache.mina.core.service.IoProcessor#add(org.apache.mina.core.session
      * .IoSession)
      */
-    @Override
     public void add(RawIoSession session) {
         System.out.println("TODO");
 
     }
-    
-    public boolean direct_write(byte[] bs){
-        return selector.write(bs)==0;
+
+    public boolean direct_write(byte[] bs) {
+        return selector.write(bs) == 0;
     }
-    
-    @Override
+
     public RawPacket filter(PcapPacket packet) {
         RawPacket pkt = RawPacket.match_local(packet, localAddr,
                 this.broadcast, this.groupcast);
@@ -221,7 +217,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
      * org.apache.mina.core.service.IoProcessor#flush(org.apache.mina.core.session
      * .IoSession)
      */
-    @Override
     public void flush(RawIoSession session) {
         // TODO Auto-generated method stub
 
@@ -245,20 +240,11 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
         return (DefaultRawSessionConfig) this.sessionConfig;
     }
 
-    public EthAddress getLocalAddr() {
-        return localAddr;
-    }
-
-    public EthAddress getRemoteAddr() {
-        return remoteAddr;
-    }
-
     /*
      * (non-Javadoc)
      * 
      * @see org.apache.mina.core.service.IoService#getSessionConfig()
      */
-    @Override
     public IoSessionConfig getSessionConfig() {
         return this.sessionConfig;
     }
@@ -277,17 +263,14 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
      * 
      * @see org.apache.mina.core.service.IoService#getTransportMetadata()
      */
-    @Override
     public TransportMetadata getTransportMetadata() {
         return RawIoSession.METADATA;
     }
 
-    @Override
     public void keepBroadcastPacket(boolean b) {
         broadcast = b;
     }
 
-    @Override
     public void keepGroupcastPacket(boolean groupcast) {
         this.groupcast = groupcast;
     }
@@ -299,7 +282,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
      * org.apache.mina.core.service.IoAcceptor#newSession(java.net.SocketAddress
      * , java.net.SocketAddress)
      */
-    @Override
     public IoSession newSession(SocketAddress remoteAddress,
             SocketAddress localAddress) {
         if (isDisposing()) {
@@ -328,7 +310,7 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
         }
 
     }
-    
+
     /*
      * (non-Javadoc)
      * 
@@ -336,12 +318,11 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
      * org.apache.mina.core.service.IoProcessor#remove(org.apache.mina.core.
      * session.IoSession)
      */
-    @Override
     public void remove(RawIoSession session) {
         getSessionRecycler().remove(session);
         getListeners().fireSessionDestroyed(session);
     }
-    
+
     /**
      * Remove_session.
      *
@@ -352,14 +333,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
         sessions.remove(session);
     }
 
-    public void setLocalAddr(EthAddress localAddr) {
-        this.localAddr = localAddr;
-    }
-
-    public void setRemoteAddr(EthAddress remoteAddr) {
-        this.remoteAddr = remoteAddr;
-    }
-
     /*
      * (non-Javadoc)
      * 
@@ -367,7 +340,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
      * org.apache.mina.core.service.IoProcessor#updateTrafficControl(org.apache
      * .mina.core.session.IoSession)
      */
-    @Override
     public void updateTrafficControl(RawIoSession session) {
         // TODO Auto-generated method stub
 
@@ -380,7 +352,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
      * org.apache.mina.core.service.IoProcessor#write(org.apache.mina.core.session
      * .IoSession, org.apache.mina.core.write.WriteRequest)
      */
-    @Override
     public void write(RawIoSession session, WriteRequest writeRequest) {
         long currentTime = System.currentTimeMillis();
         final WriteRequestQueue writeRequestQueue = session
@@ -424,7 +395,7 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
                     continue;
                 }
 
-                int localWrittenBytes = session.getChannel().write(buf.buf());
+                int localWrittenBytes = session.getChannel().write(buf.buf(),session.getRemoteAddress());
 
                 if (localWrittenBytes < 0) {
                     throw new RuntimeIoException("send fail");
@@ -543,7 +514,7 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
             return null;
         }
 
-        RawIoSession newSession = new RawIoSession(processor, this, handle);
+        RawIoSession newSession = new RawIoSession(processor, this, handle,remoteAddress);
         newSession.setSelectionKey(key);
 
         return newSession;
@@ -690,7 +661,7 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
         IoBuffer readBuf = IoBuffer.allocate(getSessionConfig()
                 .getReadBufferSize());
         RawPacket pkt = handle.receive(readBuf.buf());
-        EthAddress remoteAddress = new EthAddress(pkt.eth().destination());
+        EthAddress remoteAddress = new EthAddress(pkt.eth().source());
 
         IoSession session = newSessionWithoutLock(remoteAddress,
                 handle.getLocalAddress());
@@ -720,7 +691,6 @@ public class RawIoAcceptor extends AbstractIoAcceptor implements
                 for (SocketAddress socketAddress : localAddresses) {
                     RawIoChannel handle = new RawIoChannel(selector);
                     handle.setLocalAddress(this.localAddr);
-                    handle.setRemoteAddress(this.remoteAddr);
 
                     handle.configureBlocking(false);
                     handle.register(selector, SelectionKey.OP_READ);

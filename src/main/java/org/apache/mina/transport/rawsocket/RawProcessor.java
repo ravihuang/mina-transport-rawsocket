@@ -43,7 +43,6 @@ public class RawProcessor extends AbstractPollingIoProcessor<RawIoSession> {
         /**
          * {@inheritDoc}
          */
-        @Override
         public boolean hasNext() {
             return iterator.hasNext();
         }
@@ -51,7 +50,6 @@ public class RawProcessor extends AbstractPollingIoProcessor<RawIoSession> {
         /**
          * {@inheritDoc}
          */
-        @Override
         public RawIoSession next() {
             SelectionKey key = iterator.next();
             RawIoSession nioSession = (RawIoSession) key.attachment();
@@ -61,7 +59,6 @@ public class RawProcessor extends AbstractPollingIoProcessor<RawIoSession> {
         /**
          * {@inheritDoc}
          */
-        @Override
         public void remove() {
             iterator.remove();
         }

@@ -60,10 +60,10 @@ class RawIoPoll implements Runnable, PcapPacketHandler {
         this.config = sessionconfig;
         
         device = config.getLocalBindingAddr().getNif();
-        if (config.getLocalBindingAddr().getDumperFilename() != null)
-            dumper = new RawFileDumper(config.getLocalBindingAddr().getDumperFilename());
+        if (config.getDumperFilename() != null)
+            dumper = new RawFileDumper(config.getDumperFilename());
         
-        name=config.getName();
+        this.set_name(config.getName());
 
         // publicKeys = Collections.unmodifiableSet(new
         // HashSet<SelectionKey>());
@@ -117,7 +117,6 @@ class RawIoPoll implements Runnable, PcapPacketHandler {
      * org.jnetpcap.packet.PcapPacketHandler#nextPacket(org.jnetpcap.packet.
      * PcapPacket, java.lang.Object)
      */
-    @Override
     public void nextPacket(PcapPacket packet, Object user) {
         long c = System.currentTimeMillis();
         log.debug("{} receive size: {} {}", this, packet.size(), c);
@@ -128,12 +127,12 @@ class RawIoPoll implements Runnable, PcapPacketHandler {
         for (RawSelector sel : selectors.keySet()) {
             // 一个包只能匹配一种IoService
             if (sel.match(packet)) {
+                if (dumper != null)
+                    dumper.dump(packet);
                 break;
             }
         }
-
-        if (dumper != null)
-            dumper.dump(packet);
+        
         log.debug("time:{}", System.currentTimeMillis() - c);
     }
 
@@ -154,7 +153,6 @@ class RawIoPoll implements Runnable, PcapPacketHandler {
      * 
      * @see java.lang.Runnable#run()
      */
-    @Override
     public void run() {
         pcap = Pcap
                 .openLive(device.get_name(), config.getSnaplen(),
@@ -208,7 +206,9 @@ class RawIoPoll implements Runnable, PcapPacketHandler {
      *            the new _name
      */
     public void set_name(String name) {
-        this.name += (name + " ");
+        if(name==null||this.name!=null)
+            return;
+        this.name = name;
     }
 
     /**

@@ -84,7 +84,9 @@ public class EthNE {
     public void set_id(String id) {
         this.id = id;
     }
-
+    public String get_id() {
+        return id;
+    }
     /*
      * (non-Javadoc)
      * 

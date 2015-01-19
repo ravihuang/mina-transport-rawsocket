@@ -1,6 +1,7 @@
 package org.apache.mina.transport.rawsocket;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.SelectionKey;
@@ -19,11 +20,11 @@ public class RawIoChannel extends AbstractSelectableChannel implements
     /** The log. */
     protected static Logger log = LoggerFactory.getLogger(RawIoChannel.class);
 
+    /** The config. */
+    DefaultRawSessionConfig config;
+
     /** The fifo. */
     private Queue<RawPacket> fifo = new LinkedList<RawPacket>();
-
-    /** The selector. */
-    private RawSelector selector;
 
     /** The local. */
     private EthAddress localAddress;
@@ -31,8 +32,8 @@ public class RawIoChannel extends AbstractSelectableChannel implements
     /** The remote. */
     private EthAddress remoteAddress;
 
-    /** The config. */
-    DefaultRawSessionConfig config;
+    /** The selector. */
+    private RawSelector selector;
 
     /**
      * Instantiates a new raw io channel.
@@ -42,11 +43,14 @@ public class RawIoChannel extends AbstractSelectableChannel implements
      */
     protected RawIoChannel(RawSelector selector) {
         super(null);
-        this.selector = selector;
-        // 初始化默认的远端和本地mac地址
-        config = selector.get_config();
+        this.selector = selector;       
     }
-
+    
+    public RawIoChannel connect(SocketAddress remote){
+        this.remoteAddress=(EthAddress)remote;
+        return this;
+    }
+    
     /**
      * 判断收到的包是不是当前session需要处理的，一般应该按照ethernet层的信息来过滤.
      * selector会调用
@@ -57,9 +61,11 @@ public class RawIoChannel extends AbstractSelectableChannel implements
      */
     public boolean filter(RawPacket packet) {
         boolean rst = true;
-        if (!Arrays.equals(remoteAddress.mac(), packet.eth().source())) {
+        
+        if (remoteAddress!=null&&!Arrays.equals(remoteAddress.mac(), packet.eth().source())) {
             rst = false;
         }
+        
         if (EthAddress.verbose)
             log.debug("{} match:{} lcl={} {}", get_selector(), rst,
                     localAddress, packet);
@@ -79,10 +85,6 @@ public class RawIoChannel extends AbstractSelectableChannel implements
         return localAddress;
     }
 
-    public EthAddress getRemoteAddress() {
-        return remoteAddress;
-    }
-
     /**
      * Checks if is connected.
      *
@@ -97,7 +99,6 @@ public class RawIoChannel extends AbstractSelectableChannel implements
      * 
      * @see java.nio.channels.ReadableByteChannel#read(java.nio.ByteBuffer)
      */
-    @Override
     public int read(ByteBuffer dst) throws IOException {
         if (!fifo.isEmpty()) {
             RawPacket pkt = fifo.remove();
@@ -126,9 +127,9 @@ public class RawIoChannel extends AbstractSelectableChannel implements
     public void setLocalAddress(EthAddress localAddress) {
         this.localAddress = localAddress;
     }
-
-    public void setRemoteAddress(EthAddress remoteAddress) {
-        this.remoteAddress = remoteAddress;
+    
+    public EthAddress getRemoteAddress() {
+        return remoteAddress;
     }
 
     /**
@@ -184,16 +185,6 @@ public class RawIoChannel extends AbstractSelectableChannel implements
         return (SelectionKey.OP_READ | SelectionKey.OP_WRITE);
     }
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see java.nio.channels.WritableByteChannel#write(java.nio.ByteBuffer)
-     */
-    @Override
-    public int write(ByteBuffer src) throws IOException {
-        return write(src.array(), remoteAddress.mac());        
-    }
-    
     public int write(byte[] bs,byte[] dstAddr) throws IOException {
         JPacket pkt = RawPacket.create_eth_packet(dstAddr,
                 localAddress.mac(), this.localAddress.getEthType(), bs);
@@ -206,6 +197,19 @@ public class RawIoChannel extends AbstractSelectableChannel implements
             log.debug("{} send {}", selector, pkt);
         
         return len;
+    }
+    
+    /*
+     * (non-Javadoc)
+     * 
+     * @see java.nio.channels.WritableByteChannel#write(java.nio.ByteBuffer)
+     */
+    public int write(ByteBuffer src) throws IOException {
+        return write(src.array(), remoteAddress.mac());        
+    }
+    
+    public int write(ByteBuffer src, SocketAddress remoteAddress) throws IOException {
+        return write(src.array(), ((EthAddress)remoteAddress).mac());        
     }
     
     /*

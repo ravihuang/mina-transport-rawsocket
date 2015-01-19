@@ -25,8 +25,6 @@ public class RawIoConnector extends
 
     private EthAddress localAddr;
 
-    private EthAddress remoteAddr;
-
     /** The selector. */
     private RawSelector selector;
 
@@ -56,6 +54,7 @@ public class RawIoConnector extends
     public RawIoConnector(DefaultRawSessionConfig config, RawProcessor processor) {
         super(config, processor);
         processor.setSelector(selector);
+        localAddr=config.getLocalBindingAddr();
     }
 
     /**
@@ -82,7 +81,6 @@ public class RawIoConnector extends
         return selector.write(bs)==0;
     }
     
-    @Override
     public RawPacket filter(PcapPacket packet) {
         RawPacket pkt = RawPacket.match_local(packet, localAddr, broadcast,
                 this.groupcast);
@@ -105,16 +103,11 @@ public class RawIoConnector extends
         return localAddr;
     }
 
-    public EthAddress getRemoteAddr() {
-        return remoteAddr;
-    }
-
     /*
      * (non-Javadoc)
      * 
      * @see org.apache.mina.core.service.IoService#getSessionConfig()
      */
-    @Override
     public IoSessionConfig getSessionConfig() {
         return this.sessionConfig;
     }
@@ -124,7 +117,6 @@ public class RawIoConnector extends
      * 
      * @see org.apache.mina.core.service.IoService#getTransportMetadata()
      */
-    @Override
     public TransportMetadata getTransportMetadata() {
         return RawIoSession.METADATA;
     }
@@ -138,23 +130,14 @@ public class RawIoConnector extends
         return this.selector != null && this.selector.is_started();
     }
 
-    @Override
     public void keepBroadcastPacket(boolean b) {
         broadcast = b;
     }
 
-    @Override
     public void keepGroupcastPacket(boolean groupcast) {
         this.groupcast = groupcast;
     }
 
-    public void setLocalAddr(EthAddress localAddr) {
-        this.localAddr = localAddr;
-    }
-
-    public void setRemoteAddr(EthAddress remoteAddr) {
-        this.remoteAddr = remoteAddr;
-    }
 
     /*
      * (non-Javadoc)
@@ -191,6 +174,7 @@ public class RawIoConnector extends
         if (session != null) {
             throw new Error("already connected");
         }
+        handle.connect(remoteAddress);
         return true;
     }
 
@@ -254,7 +238,6 @@ public class RawIoConnector extends
             throws Exception {
         RawIoChannel channel = new RawIoChannel(selector);
         channel.setLocalAddress(this.localAddr);
-        channel.setRemoteAddress(this.remoteAddr);
         return channel;
     }
 

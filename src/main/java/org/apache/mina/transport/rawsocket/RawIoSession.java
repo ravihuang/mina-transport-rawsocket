@@ -29,6 +29,8 @@ public class RawIoSession extends AbstractIoSession {
 
     /** The FilterChain created for this session. */
     private final IoFilterChain filterChain;
+    
+    private SocketAddress remoteAddress;
 
     /**
      * Instantiates a new raw io session.
@@ -42,17 +44,22 @@ public class RawIoSession extends AbstractIoSession {
      */
     protected RawIoSession(IoProcessor<RawIoSession> processor,
             IoService service, RawIoChannel channel) {
+        this(processor,service,channel,channel.getRemoteAddress());
+    }
+    
+    protected RawIoSession(IoProcessor<RawIoSession> processor,
+            IoService service, RawIoChannel channel,SocketAddress remoteAddress) {
         super(service);
         this.channel = channel;
         this.processor = processor;
         filterChain = new DefaultIoFilterChain(this);
-
+        this.remoteAddress=remoteAddress;
+        
         if (service instanceof RawIoAcceptor)
             this.config = ((RawIoAcceptor) service).get_session_config();
         else
             this.config = ((RawIoConnector) service).get_session_config();
     }
-
     /**
      * Gets the channel.
      *
@@ -67,7 +74,6 @@ public class RawIoSession extends AbstractIoSession {
      * 
      * @see org.apache.mina.core.session.IoSession#getFilterChain()
      */
-    @Override
     public IoFilterChain getFilterChain() {
         return filterChain;
     }
@@ -77,7 +83,6 @@ public class RawIoSession extends AbstractIoSession {
      * 
      * @see org.apache.mina.core.session.IoSession#getLocalAddress()
      */
-    @Override
     public SocketAddress getLocalAddress() {
         return channel.getLocalAddress();
     }
@@ -95,9 +100,8 @@ public class RawIoSession extends AbstractIoSession {
      * 
      * @see org.apache.mina.core.session.IoSession#getRemoteAddress()
      */
-    @Override
     public SocketAddress getRemoteAddress() {
-        return channel.getRemoteAddress();
+        return remoteAddress;
     }
 
     /*
@@ -105,7 +109,6 @@ public class RawIoSession extends AbstractIoSession {
      * 
      * @see org.apache.mina.core.session.IoSession#getTransportMetadata()
      */
-    @Override
     public TransportMetadata getTransportMetadata() {
         return METADATA;
     }
