@@ -47,7 +47,7 @@ public class RawPacket {
         ByteBuffer buf = ByteBuffer.allocate(14 + payload.length);
         buf.put(dmac).put(smac).putShort((short) type).put(payload);
 
-        JPacket pkt = new JMemoryPacket(JProtocol.ETHERNET_ID, buf.array());
+        JPacket pkt = new JMemoryPacket(JProtocol.ETHERNET_ID, buf.array());        
         return pkt;
 
     }
@@ -90,11 +90,9 @@ public class RawPacket {
         return tcppacket;
     }
 
-    public static RawPacket match_local(PcapPacket packet, EthAddress localAddr,
+    public static RawPacket match_local_addr(PcapPacket packet, EthAddress localAddr,
             boolean broadcast,boolean groupcast) {
-        RawPacket tmp = new RawPacket(packet, localAddr.getFrameType());
-        if(localAddr.getEthType() != tmp.eth().type())
-            return null;
+        RawPacket tmp = new RawPacket(packet, localAddr.getFrameType());        
         
         if (Arrays.equals(localAddr.mac(), tmp.eth().destination())) {
             return tmp;
@@ -164,13 +162,27 @@ public class RawPacket {
         lastheader = eth;
         return eth;
     }
+    
+    public JHeader getLastHeader(){
+        if(this.lastheader!=null)
+            return this.lastheader;
+        return eth();
+    }
+    
+    public void setLastHeader(JHeader header){
+        this.lastheader=header;
+    }
+    
+    public JPacket getJPacket(){
+        return packet;
+    }
 
     /**
      * Ipv4.
      *
      * @return the ip4
      */
-    public Ip4 ipv4() {
+    Ip4 ipv4() {
         if (ipv4 != null)
             return ipv4;
         ipv4 = packet.getHeader(new Ip4());
@@ -183,7 +195,7 @@ public class RawPacket {
      *
      * @return the ip6
      */
-    public Ip6 ipv6() {
+    Ip6 ipv6() {
         if (ipv6 != null)
             return ipv6;
         ipv6 = packet.getHeader(new Ip6());
@@ -200,20 +212,11 @@ public class RawPacket {
     }
 
     /**
-     * Payload.
-     *
-     * @return the byte[]
-     */
-    public byte[] payload() {
-        return lastheader.getPayload();
-    }
-
-    /**
      * Tcp.
      *
      * @return the tcp
      */
-    public Tcp tcp() {
+    Tcp tcp() {
         if (tcp != null)
             return tcp;
 
@@ -246,7 +249,7 @@ public class RawPacket {
      *
      * @return the udp
      */
-    public Udp udp() {
+    Udp udp() {
         if (udp != null)
             return udp;
 

@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 class RawIoPoll implements Runnable, PcapPacketHandler {
     private static Logger log = LoggerFactory.getLogger(RawIoPoll.class);
     private static Hashtable<EthNE, RawIoPoll> devices = new Hashtable();
+    public static int MTU=1512;
+    public static int MITU=60;
 
     public static RawIoPoll get_poll(DefaultRawSessionConfig sessionconfig) {
         EthNE device = sessionconfig.getLocalBindingAddr().getNif();
@@ -118,8 +120,7 @@ class RawIoPoll implements Runnable, PcapPacketHandler {
      * PcapPacket, java.lang.Object)
      */
     public void nextPacket(PcapPacket packet, Object user) {
-        long c = System.currentTimeMillis();
-        log.debug("{} receive size: {} {}", this, packet.size(), c);
+        log.debug("{} receive size: {} ", this, packet.size());
 
         if (!iswakeup)
             return;
@@ -131,9 +132,7 @@ class RawIoPoll implements Runnable, PcapPacketHandler {
                     dumper.dump(packet);
                 break;
             }
-        }
-        
-        log.debug("time:{}", System.currentTimeMillis() - c);
+        }        
     }
 
     public Pcap pcap() {

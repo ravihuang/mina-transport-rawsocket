@@ -6,16 +6,22 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.spi.AbstractSelectableChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
+import org.jnetpcap.packet.JHeader;
+import org.jnetpcap.packet.JMemoryPacket;
 import org.jnetpcap.packet.JPacket;
+import org.jnetpcap.packet.PeeringException;
+import org.jnetpcap.protocol.JProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RawIoChannel extends AbstractSelectableChannel implements
-        ByteChannel {
+        ByteChannel{
 
     /** The log. */
     protected static Logger log = LoggerFactory.getLogger(RawIoChannel.class);
@@ -34,16 +40,27 @@ public class RawIoChannel extends AbstractSelectableChannel implements
 
     /** The selector. */
     private RawSelector selector;
-
+    
+    private List<IRawLayer> allLayers=new ArrayList();
+    
+    byte[] header;
+    
+    ByteBuffer buf = ByteBuffer.allocate(RawIoPoll.MTU); 
+    
+    private LApplication appLayer= new LApplication();
     /**
      * Instantiates a new raw io channel.
      *
      * @param selector
      *            the selector
      */
-    protected RawIoChannel(RawSelector selector) {
+    protected RawIoChannel(RawSelector selector,List<IRawLayer> layers) {
         super(null);
-        this.selector = selector;       
+        this.selector = selector;
+        
+        this.allLayers.addAll(layers);        
+        //add application layer
+        this.allLayers.add(appLayer);
     }
     
     public RawIoChannel connect(SocketAddress remote){
@@ -66,8 +83,8 @@ public class RawIoChannel extends AbstractSelectableChannel implements
             rst = false;
         }
         
-        if (EthAddress.verbose)
-            log.debug("{} match:{} lcl={} {}", get_selector(), rst,
+        if (DefaultRawSessionConfig.verbose)
+            log.debug("{} match:{} lcl={} {}", this, rst,
                     localAddress, packet);
         return rst;
     }
@@ -100,12 +117,10 @@ public class RawIoChannel extends AbstractSelectableChannel implements
      * @see java.nio.channels.ReadableByteChannel#read(java.nio.ByteBuffer)
      */
     public int read(ByteBuffer dst) throws IOException {
-        if (!fifo.isEmpty()) {
-            RawPacket pkt = fifo.remove();
-            dst.put(pkt.payload());
-            return pkt.payload().length;
-        }
-        return -1;
+        RawPacket pkt=receive(dst);
+        if(pkt==null)
+            return -1;
+        return pkt.getLastHeader().getPayloadLength();
     }
 
     /**
@@ -119,7 +134,16 @@ public class RawIoChannel extends AbstractSelectableChannel implements
         if (fifo.isEmpty())
             return null;
         RawPacket pkt = fifo.remove();
-        dst.put(pkt.payload());
+        JHeader lastHeader=null;
+        if(this.allLayers.size()>1){
+            int last=allLayers.size()-2;
+            lastHeader=(JHeader)allLayers.get(last).getHeader(pkt.getJPacket(),last+1);
+        }else{
+            lastHeader=pkt.eth();
+        }
+        
+        dst.put(lastHeader.getPayload());
+        pkt.setLastHeader(lastHeader);
         return pkt;
 
     }
@@ -185,18 +209,52 @@ public class RawIoChannel extends AbstractSelectableChannel implements
         return (SelectionKey.OP_READ | SelectionKey.OP_WRITE);
     }
 
+    /**
+     * 不处理分片，也就是说如果bs内容超过MTU可能会出错
+     * @param bs
+     * @param dstAddr
+     * @return
+     * @throws IOException
+     */
     public int write(byte[] bs,byte[] dstAddr) throws IOException {
-        JPacket pkt = RawPacket.create_eth_packet(dstAddr,
-                localAddress.mac(), this.localAddress.getEthType(), bs);
-
-        int len = -1;
-        if (selector.write(pkt) == 0)
-            len = bs.length;
+        buf.rewind();
         
-        if (EthAddress.verbose)
-            log.debug("{} send {}", selector, pkt);
+        //process every layer
+        appLayer.reinit(localAddress.getEthType(), bs);        
+        IRawLayer lastlayer=null;
+        for(int i=this.allLayers.size()-1;i>=0;i--){
+            this.allLayers.get(i).build(lastlayer);
+            lastlayer=this.allLayers.get(i);
+        }       
         
-        return len;
+        //put ethernet header
+        buf.put(dstAddr).put(localAddress.mac()).putShort((short)lastlayer.getType());
+        
+        for(IRawLayer tun:this.allLayers){
+            tun.encode(buf);
+        }
+        
+        if(buf.position()<RawIoPoll.MITU)
+            buf.put(new byte[RawIoPoll.MITU-buf.position()]);
+        
+        buf.flip();
+        
+        JPacket pkt=null;
+        try {
+            pkt = new JMemoryPacket(JProtocol.ETHERNET_ID, buf);
+        } catch (PeeringException e) {
+            e.printStackTrace();
+        }
+        
+        if (selector.write(pkt) == 0){
+            if (DefaultRawSessionConfig.verbose)
+                log.debug("{} send ok {}", localAddress, pkt);
+            return bs.length;
+        }else{
+            if (DefaultRawSessionConfig.verbose)
+                log.debug("{} send fail {}", localAddress, pkt);
+            return -1;
+        }
     }
     
     /*
