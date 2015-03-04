@@ -10,31 +10,17 @@ import org.jnetpcap.protocol.lan.IEEE802dot1q;
  * @author Ravi Huang
  *
  */
-public class LVlan implements IRawLayer<IEEE802dot1q>{
+public class LVlan extends ARawLayer<IEEE802dot1q>{
     private byte cfi;
     private int id;
     private byte priority;
     private int length; //payload+layer
-    byte[] bs;
-
+    
     public LVlan(byte priority, byte cfi, int id) {
         super();
         this.priority = priority;
         this.cfi = cfi;
         this.id = id;
-    }
-    
-    public LVlan(byte priority, byte cfi, int id, boolean uselength) {
-        super();
-        this.priority = priority;
-        this.cfi = cfi;
-        this.id = id;        
-    }
-    
-    @Override
-    public ByteBuffer encode(ByteBuffer buf) {        
-        buf.put(bs);
-        return buf;
     }
 
     public byte getCfi() {
@@ -84,13 +70,14 @@ public class LVlan implements IRawLayer<IEEE802dot1q>{
         if(type<0){            
             type=upLayer.length();
         }
-        if(bs==null){
-            bs=new byte[4];
-            bs[0]=(byte)((priority<<5)+(cfi<<4)+(id>>>8));
-            bs[1]=(byte)(id%256);
+        if(content==null){
+            content=new byte[4];
+            content[0]=(byte)((priority<<5)+(cfi<<4)+(id>>>8));
+            content[1]=(byte)(id%256);
         }
-        bs[2]=(byte)(type>>>8);
-        bs[3]=(byte)(type&0xff);
+        content[2]=(byte)(type>>>8);
+        content[3]=(byte)(type&0xff);
+        
         this.length=4+upLayer.length();
     }
 

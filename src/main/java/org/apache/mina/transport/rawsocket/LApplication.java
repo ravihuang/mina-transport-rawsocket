@@ -9,29 +9,22 @@ import org.jnetpcap.packet.JPacket;
  * @author Ravi Huang
  *
  */
-public class LApplication implements IRawLayer<byte[]>{
+public class LApplication extends ARawLayer<byte[]>{
     private int id;
-    private byte[] payload;
     
     public void reinit(int id,byte[] payload) {
         this.id=id;
-        this.payload = payload;
-    }
-
-    @Override
-    public ByteBuffer encode(ByteBuffer buf) {
-        buf.put(this.payload);
-        return buf;
+        this.content = payload;
     }
 
     @Override
     public byte[] getHeader(JPacket pkt, int id) {
-        return payload;
+        return content;
     }
 
     @Override
     public int length() {
-       return this.payload.length;
+       return this.content.length;
     }
 
     @Override
@@ -43,7 +36,4 @@ public class LApplication implements IRawLayer<byte[]>{
     public void build(IRawLayer upLayer) {
         //do nothing        
     }
-    
-    
-
 }
